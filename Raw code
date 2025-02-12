@@ -1,0 +1,192 @@
+---
+title: "Homework 3"
+author: "Bird Smith"
+date: "2025-02-07"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r, include=FALSE}
+#Download necessary packages
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, error = FALSE)
+library(tidyverse)
+library(dplyr)
+library(kableExtra)
+library(stringr)
+library(mosaic)
+```
+
+## Problem 1 -- Gas Prices
+
+```{r, include=FALSE}
+#Load the data set
+gasprices <- read.csv("~/Documents/SDS315/gasprices.csv")
+
+#Create a bootstrap of the difference in mean of the price of gas by whether they have a competitor in sight 
+boot_competition = do(10000) * diffmean(Price ~ Competitors, data = resample(gasprices))
+
+#Compute 95% confidence interval
+confint(boot_competition, level = 0.95)
+```
+
+
+```{r, echo=FALSE}
+#Create a boxplot of Gas Prices by Competitor Presence
+competitor_plot <- ggplot(gasprices, aes(x = Competitors, y = Price, fill = Competitors)) +
+  geom_boxplot() +
+  theme_minimal() +
+  labs(title = "Gas Prices by Competition", x = "Competitors in Sight", y = "Gas Price ($)")
+print(competitor_plot)
+```
+
+
+```{r, include=FALSE}
+#Create a bootstrap of the correlation between income and price of gas.
+boot_income_price = do(10000) * cor(Price ~ Income, data = resample(gasprices))
+
+#Compute 95% confidence interval
+confint(boot_income_price, level = 0.95)
+```
+
+
+```{r, echo=FALSE}
+#Create a boxplot of gas prices by area's income
+income_plot <- ggplot(gasprices, aes(x = Income, y = Price)) +
+  geom_point(color = "blue", alpha = 0.6) +
+  geom_smooth() +
+  theme_minimal() +
+  labs(title = "Gas Price vs. Income", x = "Median Income ($)", y = "Gas Price ($)")
+print(income_plot)
+```
+
+
+```{r, include=FALSE}
+#Create a bootstrap of the difference in mean of the price of gas at stoplights and not at stoplights.
+boot_stoplight = do(10000) * diffmean(Price ~ Stoplight, data = resample(gasprices))
+
+#Compute 95% confidence interval
+confint(boot_stoplight, level = 0.95)
+```
+
+
+```{r, echo=FALSE}
+#Create a boxplot of Gas Prices by Stoplight
+stoplight_plot <- ggplot(gasprices, aes(x = Stoplight, y = Price, fill = Stoplight)) +
+  geom_boxplot() +
+  theme_minimal() +
+  labs(title = "Gas Prices by Location to Stoplight", x = "Next to a Stoplight", y = "Gas Price ($)")
+print(stoplight_plot)
+```
+
+
+```{r, include=FALSE}
+#Create a bootstrap of the difference in mean of the price of gas depending on if the gas station has direct access to a highway.
+boot_highway = do(10000) * diffmean(Price ~ Highway, data = resample(gasprices))
+
+#Compute 95% confidence interval
+confint(boot_highway, level = 0.95)
+```
+
+
+```{r, echo=FALSE}
+#Create a boxplot of Gas Prices by Highway Access
+highway_plot <- ggplot(gasprices, aes(x = Highway, y = Price, fill = Highway)) +
+  geom_boxplot() +
+  theme_minimal() +
+  labs(title = "Gas Prices by Highway Access", x = "Highway Access", y = "Gas Price ($)")
+print(highway_plot)
+```
+
+
+```{r, include=FALSE}
+#Create a bootstrap of the difference in mean of the gas prices between Shell and non-Shell brands. 
+boot_shell = do(10000) * diffmean(Price ~ Brand == "Shell", data = resample(gasprices))
+
+#Compute 95% confidence interval
+confint(boot_shell, level = 0.95)
+```
+
+
+```{r, echo=FALSE}
+#Create a boxplot of Gas Prices by Brand
+brand_plot <- ggplot(gasprices, aes(x = Brand, y = Price, fill = Brand)) +
+  geom_boxplot() +
+  theme_minimal() +
+  labs(title = "Gas Prices by Brand", x = "Brand", y = "Gas Price ($)")
+print(brand_plot)
+```
+
+## Problem 2 -- Mercedes S-Class
+
+```{r, include=FALSE}
+#Load the data set
+sclass <- read.csv("~/Documents/SDS315/sclass.csv")
+sclass_filter <- filter(sclass, year == 2011, trim == "63 AMG", condition == "Used")
+#Create a bootstrap of the mean milage of filtered data set
+boot_mileage = do(10000) * mean(~mileage, data = resample(sclass_filter))
+
+#Compute 95% confidence interval
+confint(boot_mileage, level = 0.95)
+```
+
+
+```{r, echo=FALSE}
+#Create a histogram of bootstrapped mileage distribution
+boot_mileage_plot <- hist(boot_mileage$mean, col = "lightpink", main = "Bootstrap Distribution: Mean Mileage")
+abline(v = confint(boot_mileage, level = 0.95), col = "red", lwd = 2)
+```
+
+
+```{r, include=FALSE}
+#Create a new column called "isBlack" of the cars that are black
+sclass$isBlack <- sclass$color == "Black"
+sclass_filterb <- filter(sclass, year == 2014, trim == "550")
+#Create a bootstrap of the proportion of cars that were painted black
+boot_isblack = do(10000) * mean(~isBlack == TRUE, data = resample(sclass_filterb))
+
+#Compute 95% confidence interval
+confint(boot_isblack, level = 0.95)
+```
+
+
+```{r, echo=FALSE}
+#Create a bar chart that shows proportion of black cars
+isblack_plot <- ggplot(sclass_filterb, aes(x = isBlack)) +
+  geom_bar(fill = "black") +
+  theme_minimal() +
+  labs(title = "Proportion of 2014 S-Class 550 Cars That Are Black", x = "Black Car", y = "Count")
+print(isblack_plot)
+
+#Create a histogram of bootstrapped proportions
+boot_black_plot <- hist(boot_isblack$mean, col = "lightgreen", main = "Bootstrap Distribution: Proportion of Black Cars")
+abline(v = confint(boot_isblack, level = 0.95), col = "red", lwd = 2)
+```
+
+
+## Problem 3 -- NBC
+
+
+```{r, include=FALSE}
+#Load the data set
+nbc_pilotsurvey <- read.csv("~/Documents/SDS315/nbc_pilotsurvey.csv")
+nbc_filtered <- filter(nbc_pilotsurvey, Show %in% c("Living with Ed", "My Name is Earl"))
+#Perform 10,000 bootstrap resamples for the mean difference
+boot_happy = do(10000) * diffmean(Q1_Happy ~ Show, data = resample(nbc_filtered))
+
+#Compute 95% confidence interval
+confint(boot_happy, level = 0.95)
+```
+
+```{r, echo=FALSE}
+#Create a boxplot of happiness scores
+happy_plot <- ggplot(nbc_filtered, aes(x = Show, y = Q1_Happy, fill = Show)) +
+  geom_boxplot() +
+  theme_minimal() +
+  labs(title = "Happiness Scores by Show", x = "Show", y = "Happiness Score (1-5)")
+print(happy_plot)
+
+#Create a histogram of bootstrapped happiness difference
+boot_happy_diff <- hist(boot_happy$diffmean, col = "orange", main = "Bootstrap Distribution: Happiness Score Difference")
+abline(v = confint(boot_happy, level = 0.95), col = "red", lwd = 2)
+```
