@@ -1,0 +1,317 @@
+---
+title: "Homework 3"
+author: "Bird Smith"
+date: "2025-02-07"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+[!!!UPDATEGithub link](https://github.com/birds2000/Homework-2/blob/main/R%20code)
+
+```{r, include=FALSE}
+#Download necessary packages
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, error = FALSE)
+library(tidyverse)
+library(dplyr)
+library(kableExtra)
+library(stringr)
+library(mosaic)
+```
+
+
+## Problem 1 -- Gas Prices
+
+```{r, include=FALSE}
+#Load the data set
+gasprices <- read.csv("~/Documents/SDS315/gasprices.csv")
+
+#Create a bootstrap of the difference in mean of the price of gas by whether they have a competitor in sight 
+boot_competition = do(10000) * diffmean(Price ~ Competitors, data = resample(gasprices))
+
+#Compute 95% confidence interval
+confint(boot_competition, level = 0.95)
+```
+
+
+Theories behind the variations in gas prices we are investigating: 
+
+**1.** The theory suggests that gas stations without visible competitors charge higher prices. While both groups have the same minimum price, the maximum price is higher for stations without competitors: `r max(gasprices$Price[gasprices$Competitors == "N"])` vs. `r max(gasprices$Price[gasprices$Competitors == "Y"])`. The median price is also higher for these stations by `r median(gasprices$Price[gasprices$Competitors == "N"]) - median(gasprices$Price[gasprices$Competitors == "Y"])` dollars. However, the mean difference confidence interval is (-0.055, 0.008), meaning the difference is not statistically significant. These findings suggest no strong evidence that a lack of visible competition leads to higher prices.
+
+
+```{r, echo=FALSE}
+#Create a boxplot of Gas Prices by Competitor Presence
+competitor_plot <- ggplot(gasprices, aes(x = Competitors, y = Price, fill = Competitors)) +
+  geom_boxplot() +
+  theme_minimal() +
+  labs(title = "Gas Prices by Competition", x = "Competitors in Sight", y = "Gas Price ($)")
+print(competitor_plot)
+```
+
+
+**2.** The next theory is that gas prices tend to be higher in areas with higher median incomes. The scatterplot below clearly shows a positive trend, aided by the ab line. The bootstrap correlation is 0.20, with a 95% CI of (0.20, 0.57), suggesting a moderate positive relationship. The data supports this theory -- gas prices tend to rise in wealthier areas, though other factors may also contribute.
+
+
+```{r, include=FALSE}
+#Create a bootstrap of the correlation between income and price of gas.
+boot_income_price = do(10000) * cor(Price ~ Income, data = resample(gasprices))
+
+#Compute 95% confidence interval
+confint(boot_income_price, level = 0.95)
+```
+
+```{r, echo=FALSE}
+#Create a boxplot of gas prices by area's income
+income_plot <- ggplot(gasprices, aes(x = Income, y = Price)) +
+  geom_point(color = "blue", alpha = 0.6) +
+  geom_smooth() +
+  theme_minimal() +
+  labs(title = "Gas Price vs. Income", x = "Median Income ($)", y = "Gas Price ($)")
+print(income_plot)
+```
+
+
+**3.** Next, the theory that gas stations near stoplights charge higher prices due to increased traffic and convenience. The boxplot shows slightly higher prices for gas stations near stoplights, but the bootstrap mean difference is between -0.038 and 0.030, meaning no significant difference. The theory is not supported by the data, so gas prices do not significantly differ between stations near stoplights and those that are not. 
+
+
+```{r, include=FALSE}
+#Create a bootstrap of the difference in mean of the price of gas at stoplights and not at stoplights.
+boot_stoplight = do(10000) * diffmean(Price ~ Stoplight, data = resample(gasprices))
+
+#Compute 95% confidence interval
+confint(boot_stoplight, level = 0.95)
+```
+
+```{r, echo=FALSE}
+#Create a boxplot of Gas Prices by Stoplight
+stoplight_plot <- ggplot(gasprices, aes(x = Stoplight, y = Price, fill = Stoplight)) +
+  geom_boxplot() +
+  theme_minimal() +
+  labs(title = "Gas Prices by Location to Stoplight", x = "Next to a Stoplight", y = "Gas Price ($)")
+print(stoplight_plot)
+```
+
+
+**4.** Next is the theory that gas stations with direct highway access tend to charge higher prices due to convenience and higher demand from travelers. The boxplot suggests higher prices for stations that have highway access.
+The bootstrap mean difference is $0.01 to $0.08, with 95% confidence. This theory is supported, and when the numbers are considered, the effect is smaller than as immediately assumed from the graph; highway-access stations definitely charge slightly more, but the difference is not large.
+
+
+```{r, include=FALSE}
+#Create a bootstrap of the difference in mean of the price of gas depending on if the gas station has direct access to a highway.
+boot_highway = do(10000) * diffmean(Price ~ Highway, data = resample(gasprices))
+
+#Compute 95% confidence interval
+confint(boot_highway, level = 0.95)
+```
+
+```{r, echo=FALSE}
+#Create a boxplot of Gas Prices by Highway Access
+highway_plot <- ggplot(gasprices, aes(x = Highway, y = Price, fill = Highway)) +
+  geom_boxplot() +
+  theme_minimal() +
+  labs(title = "Gas Prices by Highway Access", x = "Highway Access", y = "Gas Price ($)")
+print(highway_plot)
+```
+
+
+**5.** Finally, we are investigating the theory that Shell gas stations charge higher prices compared to all other brands. The boxplot shows some variation, but Shell’s prices do not appear consistently higher. The bootstrap mean difference is between -0.009 and 0.065, including zero-- meaning no significant difference between Shell and non-Shell brands. The theory is not supported since Shell’s prices are not consistently higher than other brands based on the available data.
+
+
+```{r, include=FALSE}
+#Create a bootstrap of the difference in mean of the gas prices between Shell and non-Shell brands. 
+boot_shell = do(10000) * diffmean(Price ~ Brand == "Shell", data = resample(gasprices))
+
+#Compute 95% confidence interval
+confint(boot_shell, level = 0.95)
+```
+
+```{r, echo=FALSE}
+#Create a boxplot of Gas Prices by Brand
+brand_plot <- ggplot(gasprices, aes(x = Brand, y = Price, fill = Brand)) +
+  geom_boxplot() +
+  theme_minimal() +
+  labs(title = "Gas Prices by Brand", x = "Brand", y = "Gas Price ($)")
+print(brand_plot)
+```
+
+
+## Problem 2 -- Mercedes S-Class
+
+**Part A:** 
+
+```{r, include=FALSE}
+#Load the data set
+sclass <- read.csv("~/Documents/SDS315/sclass.csv")
+sclass_filter <- filter(sclass, year == 2011, trim == "63 AMG", condition == "Used")
+#Create a bootstrap of the mean milage of filtered data set
+boot_mileage = do(10000) * mean(~mileage, data = resample(sclass_filter))
+
+#Compute 95% confidence interval
+confint(boot_mileage, level = 0.95)
+```
+
+
+The 95% confidence interval for the average mileage of 2011 S-Class 63 AMGs that were hitting the used-car market during the time of data collection used is (`r round(confint(boot_mileage, level=0.95)$lower, 3)`, 
+`r round(confint(boot_mileage, level=0.95)$upper, 3)`).
+
+
+```{r, echo=FALSE}
+#Create a histogram of bootstrapped mileage distribution
+boot_mileage_plot <- hist(boot_mileage$mean, col = "lightpink", main = "Bootstrap Distribution: Mean Mileage")
+abline(v = confint(boot_mileage, level = 0.95), col = "red", lwd = 2)
+```
+
+
+**Part B:**
+
+```{r, include=FALSE}
+#Create a new column called "isBlack" of the cars that are black
+sclass$isBlack <- sclass$color == "Black"
+sclass_filterb <- filter(sclass, year == 2014, trim == "550")
+#Create a bootstrap of the proportion of cars that were painted black
+boot_isblack = do(10000) * mean(~isBlack == TRUE, data = resample(sclass_filterb))
+
+#Compute 95% confidence interval
+confint(boot_isblack, level = 0.95)
+```
+
+
+The 95% confidence interval for the proportion of all 2014 S-Class 550s that were painted black is (`r round(confint(boot_isblack, level=0.95)$lower, 3)`, 
+ `r round(confint(boot_isblack, level=0.95)$upper, 3)`).
+
+
+```{r, echo=FALSE}
+#Create a bar chart that shows proportion of black cars
+isblack_plot <- ggplot(sclass_filterb, aes(x = isBlack)) +
+  geom_bar(fill = "black") +
+  theme_minimal() +
+  labs(title = "Proportion of 2014 S-Class 550 Cars That Are Black", x = "Black Car", y = "Count")
+print(isblack_plot)
+
+#Create a histogram of bootstrapped proportions
+boot_black_plot <- hist(boot_isblack$mean, col = "lightgreen", main = "Bootstrap Distribution: Proportion of Black Cars")
+abline(v = confint(boot_isblack, level = 0.95), col = "red", lwd = 2)
+```
+
+
+## Problem 3 -- NBC
+
+**Part A.** 
+
+The question I'm answering is if "Living with Ed" generates significantly higher happiness scores than "My Name is Earl." To find out, I first filtered data to include only responses for these two shows. Bootstrap resampling (10,000 samples) was used to estimate the difference in mean happiness scores. I computed a 95% confidence interval for the difference in means, visualized distributions using boxplots for happiness scores by show, and created a bootstrap distribution histogram to assess variability. 
+Insights from the boxplot were that "Living with Ed" has a higher median happiness score and a wider range. "My Name is Earl" has a lower median, with a more concentrated distribution. The bootstrap confidence interval for mean difference is (-0.40, 0.10). Since the confidence interval includes zero, there is no statistically significant difference between the two shows. In the bootstrap histogram, the distribution shows some overlap, further supporting the lack of a significant difference. There is no strong evidence that "Living with Ed" consistently makes viewers happier than "My Name is Earl."
+
+
+```{r, include=FALSE}
+#Load the data set
+nbc_pilotsurvey <- read.csv("~/Documents/SDS315/nbc_pilotsurvey.csv")
+nbc_filtered <- filter(nbc_pilotsurvey, Show %in% c("Living with Ed", "My Name is Earl"))
+#Perform 10,000 bootstrap resamples for the mean difference
+boot_happy = do(10000) * diffmean(Q1_Happy ~ Show, data = resample(nbc_filtered))
+
+#Compute 95% confidence interval
+confint(boot_happy, level = 0.95)
+```
+
+```{r, echo=FALSE}
+#Create a boxplot of happiness scores
+happy_plot <- ggplot(nbc_filtered, aes(x = Show, y = Q1_Happy, fill = Show)) +
+  geom_boxplot() +
+  theme_minimal() +
+  labs(title = "Happiness Scores by Show", x = "Show", y = "Happiness Score (1-5)")
+print(happy_plot)
+
+#Create a histogram of bootstrapped happiness difference
+boot_happy_diff <- hist(boot_happy$diffmean, col = "orange", main = "Bootstrap Distribution: Happiness Score Difference")
+abline(v = confint(boot_happy, level = 0.95), col = "red", lwd = 2)
+```
+
+
+**Part B.**
+
+Does "The Apprentice: Los Angeles" generate significantly higher annoyance scores than "The Biggest Loser"? To answer this question, I filtered the data to include only responses for these two shows. Bootstrap resampling (10,000 samples) was used to estimate the difference in mean annoyance scores. I computed a 95% confidence interval for the difference in means and visualized distributions using boxplots for annoyance scores by show. The results were that "The Apprentice: Los Angeles" appears to have higher median annoyance scores than "The Biggest Loser." The bootstrap confidence interval for mean difference: (-0.53, -0.02) The confidence interval is entirely negative, meaning "The Biggest Loser" has lower annoyance scores on average. The estimated mean difference is -0.27, indicating viewers found "The Apprentice: Los Angeles" more annoying. There is statistically significant evidence that "The Apprentice: Los Angeles" generates higher annoyance levels than "The Biggest Loser." Stakeholders may want to know that "The Apprentice: Los Angeles" is not a show that their money would be worth putting towards keeping on air or in production. 
+
+
+```{r, include=FALSE}
+#Load the data set
+nbc_filtered2 <- filter(nbc_pilotsurvey, Show %in% c("The Biggest Loser", "The Apprentice: Los Angeles"))
+#Create a bootstrap resample of the difference in mean viewer response to the Q1_Annoyed question
+boot_annoyed = do(10000) * diffmean(Q1_Annoyed ~ Show, data = resample(nbc_filtered2))
+
+#Compute 95% confidence interval
+confint(boot_annoyed, level = 0.95)
+```
+
+```{r, echo=FALSE}
+#Create a boxplot of annoyance scores by show
+annoyance_plot <- ggplot(nbc_filtered2, aes(x = Show, y = Q1_Annoyed, fill = Show)) +
+  geom_boxplot() +
+  theme_minimal() +
+  labs(title = "Annoyance Scores by Show", x = "Show", y = "Annoyance Score (1-5)")
+print(annoyance_plot)
+```
+
+
+**Part C.**
+
+Lastly, I'm answering the question of "What proportion of American TV watchers would rate "Dancing with the Stars" as confusing?" to approach answering this, I filtered data to include only responses for "Dancing with the Stars." I used bootstrap resampling (10,000 samples) to estimate the proportion of respondents who rated the show as confusing (score $\ge$ 4). After computing a 95% confidence interval for this proportion, I visualized distributions using a bar chart of confusion ratings and a histogram of bootstrapped proportions with confidence interval markers. The bar chart showed that a small proportion of respondents rated the show as confusing (4 or 5). The estimated proportion of American TV watchers who found the show confusing is 7.73%, with a 95% confidence interval between 3.87% and 11.60%. The bootstrap histogram's distribution is centered around 7.73%, suggesting a stable estimate. There is some evidence that a small but notable portion of viewers found "Dancing with the Stars" confusing. While the majority of respondents did not find the show confusing, an estimated 7.73% of American TV watchers might struggle with it.
+
+
+```{r, include=FALSE}
+nbc_filtered3 <- filter(nbc_pilotsurvey, Show == "Dancing with the Stars")
+#Create a bootstrap resample of the proportion of American TV watchers we'd expect to have a response of 4 or greater to the Q2_Confusing question
+boot_confusing = do(10000) * mean(~(Q2_Confusing >= 4), data = resample(nbc_filtered3))
+
+#Compute 95% confidence interval
+confint(boot_confusing, level = 0.95)
+```
+
+```{r, echo=FALSE}
+#Create a bar chart of confusion scores for DWTS
+stars_plot <- ggplot(nbc_filtered3, aes(x = factor(Q2_Confusing))) +
+  geom_bar(fill = "lightblue") +
+  theme_minimal() +
+  labs(title = "Confusion Ratings for 'Dancing with the Stars'", x = "Confusion Score", y = "Count")
+print(stars_plot)
+
+#Create histogram of bootstrapped confusion scores
+boot_confusion_plot <- hist(boot_confusing$mean, col = "purple", main = "Bootstrap Distribution: Confusion Proportion")
+abline(v = confint(boot_confusing, level = 0.95), col = "red", lwd = 2)
+```
+
+
+## Problem 4 -- Ebay
+
+Does turning off Google AdWords advertising reduce revenue for eBay, or is paid search advertising an unnecessary expense? To answer this, I started calculating; first, the revenue ratio (revenue after / revenue before) for each DMA to control for size differences. Then, I computed the mean revenue ratio for both treatment (ads paused) and control (ads continued) groups. I used bootstrap resampling (10,000 Monte Carlo simulations) to estimate the difference in revenue ratio between the two groups. Next, I generated a 95% confidence interval for the difference, and visualized distributions using a boxplot comparing revenue ratios by group and a histogram of bootstrapped revenue ratio differences to assess uncertainty. The observed mean difference in revenue ratio was that the treatment group had a lower mean revenue ratio than the control group. The bootstrap confidence interval for difference in means is (-0.091, -0.014), so since the confidence interval is entirely negative, revenue ratios were significantly lower in the treatment group. The boxplot shows that the control group had higher revenue ratios on average, suggesting that paid advertising helped maintain revenue levels. The bootstrap histogram showed that the distribution is centered below zero, reinforcing my point that turning off ads led to a measurable revenue drop. Overall, there is strong statistical evidence that pausing Google AdWords advertising resulted in lower revenue for eBay. It would be beneficial for stakeholders to be aware of this, as it's vital to know that since the confidence interval does not include zero, the difference is unlikely due to chance, suggesting that paid search advertising drives extra revenue for eBay rather than being an unnecessary expense.
+
+
+```{r, include=FALSE}
+#Load the dataset
+ebay <- read.csv("~/Documents/SDS315/ebay.csv")
+ebay_new <- mutate(ebay, revenue_ratio = rev_after / rev_before)
+#Compute the means for treatment and control groups
+mean_treatment <- mean(ebay_new$revenue_ratio[ebay_new$adwords_pause == 1])
+mean_control <- mean(ebay_new$revenue_ratio[ebay_new$adwords_pause == 0])
+
+#Compute the observed difference
+obs_diff <- mean_treatment - mean_control
+boot_diff <- do(10000) * diffmean(revenue_ratio ~ adwords_pause, data = resample(ebay_new))
+
+#Compute 95% confidence interval
+confint(boot_diff, level = 0.95)
+```
+
+```{r, echo=FALSE}
+#Create a boxplot of revenue ratios by group
+revenue_plot <- ggplot(ebay_new, aes(x = factor(adwords_pause), y = revenue_ratio, fill = factor(adwords_pause))) +
+  geom_boxplot() +
+  theme_minimal() +
+  scale_x_discrete(labels = c("0" = "Control", "1" = "Treatment")) +
+  labs(title = "Revenue Ratio by AdWords Pause Status", x = "Group", y = "Revenue Ratio")
+print(revenue_plot)
+
+#Create a histogram of bootstrapped revenue ratio differences
+boot_ratio_diff <- hist(boot_diff$diffmean, col = "grey", main = "Bootstrap Distribution: Revenue Ratio Difference")
+abline(v = confint(boot_diff, level = 0.95), col = "red", lwd = 2)
+```
+
